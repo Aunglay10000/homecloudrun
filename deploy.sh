@@ -15,8 +15,8 @@ if [[ -z "$PROJECT" ]]; then
 fi
 echo -e "✅ ${GREEN}Current GCP Project:${NC} $PROJECT"
 
-# ---------- Inputs (with sensible defaults; can override via env) ----------
-SERVICE="${SERVICE:-freen4vpn}"        # export SERVICE=myservice bash deploy.sh  ဆိုပြီး override လုပ်လို့ရ
+# ---------- Inputs ----------
+SERVICE="${SERVICE:-freen4vpn}"
 REGION="${REGION:-us-central1}"
 IMAGE="${IMAGE:-docker.io/n4vip/trojan:latest}"
 MEMORY="${MEMORY:-1Gi}"
@@ -25,16 +25,16 @@ TIMEOUT="${TIMEOUT:-3600}"
 PORT="${PORT:-8080}"
 
 # (Trojan link defaults)
-TROJAN_PASS="${TROJAN_PASS:-Nanda}"                 # trojan://<password>@...
-TROJAN_TAG="${TROJAN_TAG:-N4 GCP Hour Key}"        # human label (will be URL-encoded)
-TROJAN_PATH_ESC="%2F%40n4vpn"                      # /@n4vpn
-TROJAN_SNI="m.googleapis.com"                      # sni
-TROJAN_ENTRY_HOST="m.googleapis.com"               # connect host
-TROJAN_ALPN="http%2F1.1"                           # http/1.1
-TROJAN_FP="randomized"                             # fingerprint
-TROJAN_TYPE="ws"                                   # websocket
+TROJAN_PASS="${TROJAN_PASS:-Nanda}"
+TROJAN_TAG="${TROJAN_TAG:-N4 GCP Hour Key}"
+TROJAN_PATH_ESC="%2F%40n4vpn"
+TROJAN_SNI="m.googleapis.com"
+TROJAN_ENTRY_HOST="m.googleapis.com"
+TROJAN_ALPN="http%2F1.1"
+TROJAN_FP="randomized"
+TROJAN_TYPE="ws"
 
-# ---------- Optional interactive prompt for service name ----------
+# ---------- Prompt ----------
 read -rp "Enter Cloud Run service name [default: ${SERVICE}]: " _inp || true
 SERVICE="${_inp:-$SERVICE}"
 
@@ -45,7 +45,6 @@ echo -e "${CYAN}========================================${NC}"
 echo -e "📦 Project : ${GREEN}$PROJECT${NC}"
 echo -e "🌍 Region  : ${GREEN}$REGION${NC}"
 echo -e "🛠 Service : ${GREEN}$SERVICE${NC}"
-# echo -e "🐳 Image   : ${GREEN}$IMAGE${NC}"   # ← Docker URL မဖော်ပြချင်လို့ comment ထား
 echo -e "💾 Memory  : ${GREEN}$MEMORY${NC}"
 echo -e "⚡ CPU     : ${GREEN}$CPU${NC}"
 echo -e "⏱ Timeout : ${GREEN}${TIMEOUT}s${NC}"
@@ -72,40 +71,25 @@ gcloud run deploy "$SERVICE" \
   --port="$PORT" \
   --quiet
 
-# ---------- Get URL & host ----------
+# ---------- Get URL & build Trojan link ----------
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 HOST="$(echo "$URL" | sed -E 's#^https?://([^/]+)/?.*#\1#')"
 
 echo -e "\n${GREEN}✅ Deployment finished!${NC}"
 echo -e "🌐 Service URL: ${BOLD}${CYAN}${URL}${NC}\n"
 
-# ---------- Build Trojan URI (auto insert deployed host) ----------
-TAG_ENC="${TROJAN_TAG// /%20}"  # simple space→%20
+TAG_ENC="${TROJAN_TAG// /%20}"
 TROJAN_URI="trojan://${TROJAN_PASS}@${TROJAN_ENTRY_HOST}:443?path=${TROJAN_PATH_ESC}&security=tls&alpn=${TROJAN_ALPN}&host=${HOST}&fp=${TROJAN_FP}&type=${TROJAN_TYPE}&sni=${TROJAN_SNI}#${TAG_ENC}"
 
-# ---------- Write files ----------
-OUT_BASENAME="trojan_${SERVICE}"
-TXT_FILE="${OUT_BASENAME}.txt"
-URL_FILE="${OUT_BASENAME}.url"          # some clients accept .url or plain text
+# ---------- Upload to 0x0.st ----------
+echo -e "➡️ ${CYAN}Uploading Trojan link to 0x0.st ...${NC}"
+DL_URL=$(echo -n "${TROJAN_URI}" | curl -s -F 'file=@-' https://0x0.st)
 
-echo "${TROJAN_URI}" > "${TXT_FILE}"
-echo "${TROJAN_URI}" > "${URL_FILE}"
-
-echo -e "📝 Saved Trojan link to:"
-echo -e "   - ${BOLD}${TXT_FILE}${NC}"
-echo -e "   - ${BOLD}${URL_FILE}${NC}"
-
-# ---------- Trigger Cloud Shell download (if available) ----------
-if command -v cloudshell >/dev/null 2>&1; then
-  echo -e "📥 Triggering Cloud Shell download..."
-  # Try to download .txt first; fallback to .url if needed
-  cloudshell download "${TXT_FILE}" || cloudshell download "${URL_FILE}" || true
-  echo -e "✅ If the browser download didn't appear, you can also fetch from your Cloud Shell home directory."
+if [[ -n "$DL_URL" ]]; then
+  echo -e "🌐 ${GREEN}Download Link:${NC} ${BOLD}${CYAN}${DL_URL}${NC}"
+  echo -e "\n💡 ${YELLOW}👉 Click this link to directly download your trojan config file.${NC}"
 else
-  echo -e "${YELLOW}ℹ️ 'cloudshell' helper not found. Files are saved locally in Cloud Shell working directory.${NC}"
-  echo -e "   You can manually download via editor or run:  cloudshell download ${TXT_FILE}"
+  echo -e "${RED}⚠️ Upload to 0x0.st failed.${NC}"
+  echo -e "🔗 Trojan URI:"
+  echo -e "${BOLD}${TROJAN_URI}${NC}"
 fi
-
-# ---------- Print URI for quick copy (optional) ----------
-echo -e "\n🔗 Trojan URI:"
-echo -e "${BOLD}${TROJAN_URI}${NC}\n"
