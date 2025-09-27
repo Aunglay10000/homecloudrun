@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------- Pretty colors ----------
+# ---------- Colors ----------
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
-
-echo -e "🚀 ${BOLD}${CYAN}Cloud Run One-Click Deploy (Pastebin + Auto Download)${NC}"
+echo -e "🚀 ${BOLD}${CYAN}Cloud Run Deploy (QR with N4 VPN Logo)${NC}"
 
 # ---------- GCP ----------
 PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
 if [[ -z "$PROJECT" ]]; then
-  echo -e "${RED}❌ No active GCP project found.${NC}"
-  echo -e "👉 ${YELLOW}Run first:${NC}  gcloud config set project <YOUR_PROJECT_ID>"
+  echo -e "${RED}❌ No active GCP project.${NC}"
+  echo -e "👉 Run: ${YELLOW}gcloud config set project <YOUR_PROJECT_ID>${NC}"
   exit 1
 fi
-echo -e "✅ ${GREEN}Current GCP Project:${NC} $PROJECT"
+echo -e "✅ ${GREEN}Current Project:${NC} $PROJECT"
 
 # ---------- Inputs ----------
 SERVICE="${SERVICE:-freen4vpn}"
@@ -24,7 +23,6 @@ CPU="${CPU:-1}"
 TIMEOUT="${TIMEOUT:-3600}"
 PORT="${PORT:-8080}"
 
-# ---------- Trojan defaults ----------
 TROJAN_PASS="${TROJAN_PASS:-Nanda}"
 TROJAN_TAG="${TROJAN_TAG:-N4 GCP Hour Key}"
 TROJAN_PATH_ESC="%2F%40n4vpn"
@@ -34,14 +32,13 @@ TROJAN_ALPN="http%2F1.1"
 TROJAN_FP="randomized"
 TROJAN_TYPE="ws"
 
-# ---------- Prompt ----------
 read -rp "Enter Cloud Run service name [default: ${SERVICE}]: " _inp || true
 SERVICE="${_inp:-$SERVICE}"
 
 # ---------- Summary ----------
-echo -e "\n${CYAN}========================================${NC}"
-echo -e "⚙️  ${BOLD}Deploy Settings${NC}"
-echo -e "${CYAN}========================================${NC}"
+echo -e "\n${CYAN}===============================${NC}"
+echo -e "⚙️  Deploy Settings"
+echo -e "${CYAN}===============================${NC}"
 echo -e "📦 Project : ${GREEN}$PROJECT${NC}"
 echo -e "🌍 Region  : ${GREEN}$REGION${NC}"
 echo -e "🛠 Service : ${GREEN}$SERVICE${NC}"
@@ -49,17 +46,16 @@ echo -e "💾 Memory  : ${GREEN}$MEMORY${NC}"
 echo -e "⚡ CPU     : ${GREEN}$CPU${NC}"
 echo -e "⏱ Timeout : ${GREEN}${TIMEOUT}s${NC}"
 echo -e "🔌 Port    : ${GREEN}$PORT${NC}"
-echo -e "${CYAN}========================================${NC}\n"
+echo -e "${CYAN}===============================${NC}\n"
 
-read -rp "Proceed with these settings? (y/n): " GO || true
-[[ "$GO" =~ ^[Yy]$ ]] || { echo -e "${RED}🚫 Deployment cancelled.${NC}"; exit 0; }
+read -rp "Proceed? (y/n): " GO || true
+[[ "$GO" =~ ^[Yy]$ ]] || { echo -e "${RED}🚫 Cancelled.${NC}"; exit 0; }
 
 # ---------- Enable APIs ----------
-echo -e "➡️ ${CYAN}Enabling Cloud Run & Cloud Build APIs...${NC}"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com --quiet
 
 # ---------- Deploy ----------
-echo -e "➡️ ${CYAN}Deploying to Cloud Run...${NC}"
+echo -e "➡️ ${CYAN}Deploying...${NC}"
 gcloud run deploy "$SERVICE" \
   --image="$IMAGE" \
   --platform=managed \
@@ -71,65 +67,67 @@ gcloud run deploy "$SERVICE" \
   --port="$PORT" \
   --quiet
 
-# ---------- URL & Trojan ----------
+# ---------- Build Trojan URI ----------
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 HOST="$(echo "$URL" | sed -E 's#^https?://([^/]+)/?.*#\1#')"
-
-echo -e "\n${GREEN}✅ Deployment finished!${NC}"
-echo -e "🌐 Service URL: ${BOLD}${CYAN}${URL}${NC}\n"
 
 TAG_ENC="${TROJAN_TAG// /%20}"
 TROJAN_URI="trojan://${TROJAN_PASS}@${TROJAN_ENTRY_HOST}:443?path=${TROJAN_PATH_ESC}&security=tls&alpn=${TROJAN_ALPN}&host=${HOST}&fp=${TROJAN_FP}&type=${TROJAN_TYPE}&sni=${TROJAN_SNI}#${TAG_ENC}"
 
-OUT_FILE="trojan_${SERVICE}.txt"
-echo -n "${TROJAN_URI}" > "${OUT_FILE}"
-echo -e "💾 Saved locally: ${YELLOW}${OUT_FILE}${NC}"
+TXT_FILE="trojan_${SERVICE}.txt"
+PNG_FILE="trojan_${SERVICE}.png"
+echo -n "${TROJAN_URI}" > "${TXT_FILE}"
 
-# ---------- Pastebin (ONLY) ----------
-PASTEBIN_DEV_KEY="a4SeEKNHX0CzZ3-l0SP5Qae-5Ll-xmRd"   # Your Developer API Key
+echo -e "\n${GREEN}✅ Deployed!${NC}"
+echo -e "🌐 Service URL: ${CYAN}${URL}${NC}"
+echo -e "🔗 Trojan URI: ${YELLOW}${TROJAN_URI}${NC}"
 
-echo -e "➡️ ${CYAN}Uploading to Pastebin (unlisted)...${NC}"
-PB_RESP=$(curl -s \
-  --data "api_dev_key=${PASTEBIN_DEV_KEY}" \
-  --data "api_option=paste" \
-  --data-urlencode "api_paste_code=$(cat "${OUT_FILE}")" \
-  --data-urlencode "api_paste_name=${OUT_FILE}" \
-  --data "api_paste_private=1" \
-  https://pastebin.com/api/api_post.php)
+# ---------- QR + Logo ----------
+echo -e "➡️ ${CYAN}Generating QR with N4 VPN Logo...${NC}"
+python3 - <<'PY' "${TROJAN_URI}" "${PNG_FILE}"
+import sys
+data = sys.argv[1]
+png = sys.argv[2]
+try:
+    import qrcode
+    from PIL import Image
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+    # Insert logo
+    try:
+        logo = Image.open("logo.png")  # same folder
+        box = (img.size[0]//3, img.size[1]//3)
+        size = img.size[0]//4
+        logo = logo.resize((size, size))
+        pos = ((img.size[0]-logo.size[0])//2, (img.size[1]-logo.size[1])//2)
+        img.paste(logo, pos, mask=logo if logo.mode=="RGBA" else None)
+    except Exception as e:
+        print("⚠️ Logo not found or failed:", e)
+    img.save(png)
+    print("QR_OK")
+except Exception as e:
+    print("QR_ERR", e)
+PY
 
-if [[ "$PB_RESP" =~ ^https?://pastebin\.com/ ]]; then
-  RAW_URL="$(echo "$PB_RESP" | sed -E 's#https?://pastebin\.com/([A-Za-z0-9]+)#https://pastebin.com/raw/\1#')"
-  echo -e "🌐 ${GREEN}Pastebin Link:${NC} ${BOLD}${CYAN}${PB_RESP}${NC}"
-  echo -e "📄 ${GREEN}Raw URL:${NC} ${BOLD}${CYAN}${RAW_URL}${NC}"
-
-  # Local overwrite (optional)
-  curl -sSL "$RAW_URL" -o "${OUT_FILE}" || true
-  echo -e "✅ Also wrote raw content to: ${YELLOW}${OUT_FILE}${NC}"
-
-  # ---- (1) auto download the TXT (Cloud Shell -> browser) ----
-  if command -v cloudshell >/dev/null 2>&1; then
-    echo -e "📥 Triggering Cloud Shell download for ${OUT_FILE}..."
-    cloudshell download "${OUT_FILE}" || true
-  fi
-
-  # ---- (2) create a .url shortcut that opens the Pastebin RAW (tap to open) ----
-  URL_FILE="open_${SERVICE}.url"
-  {
-    echo "[InternetShortcut]"
-    echo "URL=${RAW_URL}"
-  } > "${URL_FILE}"
-
-  if command -v cloudshell >/dev/null 2>&1; then
-    echo -e "📎 Also offering URL shortcut: ${YELLOW}${URL_FILE}${NC}"
-    cloudshell download "${URL_FILE}" || true
-  fi
-
+if [[ -f "${PNG_FILE}" ]]; then
+  echo -e "🖼  QR PNG created: ${YELLOW}${PNG_FILE}${NC}"
 else
-  echo -e "${RED}❌ Pastebin upload failed:${NC} ${PB_RESP}"
-  echo -e "🔗 Trojan URI (copy manually):"
-  echo -e "${BOLD}${TROJAN_URI}${NC}"
+  echo -e "${RED}⚠️ QR PNG failed. Showing ASCII QR instead.${NC}"
+  python3 - <<'PY' "${TROJAN_URI}"
+import sys, qrcode
+data=sys.argv[1]
+qr=qrcode.QRCode(border=1, box_size=1); qr.add_data(data); qr.make(fit=True)
+for r in qr.get_matrix(): print(''.join('██' if c else '  ' for c in r))
+PY
 fi
 
-# ---------- Final ----------
-echo -e "\n🔗 Trojan URI:"
-echo -e "${BOLD}${TROJAN_URI}${NC}\n"
+# ---------- Auto Download (Cloud Shell) ----------
+if command -v cloudshell >/dev/null 2>&1; then
+  cloudshell download "${TXT_FILE}" || true
+  [[ -f "${PNG_FILE}" ]] && cloudshell download "${PNG_FILE}" || true
+  echo -e "💡 Allow pop-ups/downloads for shell.cloud.google.com if dialog doesn’t show."
+else
+  echo -e "${YELLOW}ℹ️ No cloudshell helper. Download manually from editor.${NC}"
+fi
