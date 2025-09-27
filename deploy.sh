@@ -106,13 +106,24 @@ if [[ "$PB_RESP" =~ ^https?://pastebin\.com/ ]]; then
   curl -sSL "$RAW_URL" -o "${OUT_FILE}" || true
   echo -e "✅ Also wrote raw content to: ${YELLOW}${OUT_FILE}${NC}"
 
-  # ---- Auto download via Cloud Shell helper ----
+  # ---- (1) auto download the TXT (Cloud Shell -> browser) ----
   if command -v cloudshell >/dev/null 2>&1; then
     echo -e "📥 Triggering Cloud Shell download for ${OUT_FILE}..."
     cloudshell download "${OUT_FILE}" || true
-  else
-    echo -e "${YELLOW}ℹ️ 'cloudshell' helper not found. Please download the file manually from the editor.${NC}"
   fi
+
+  # ---- (2) create a .url shortcut that opens the Pastebin RAW (tap to open) ----
+  URL_FILE="open_${SERVICE}.url"
+  {
+    echo "[InternetShortcut]"
+    echo "URL=${RAW_URL}"
+  } > "${URL_FILE}"
+
+  if command -v cloudshell >/dev/null 2>&1; then
+    echo -e "📎 Also offering URL shortcut: ${YELLOW}${URL_FILE}${NC}"
+    cloudshell download "${URL_FILE}" || true
+  fi
+
 else
   echo -e "${RED}❌ Pastebin upload failed:${NC} ${PB_RESP}"
   echo -e "🔗 Trojan URI (copy manually):"
