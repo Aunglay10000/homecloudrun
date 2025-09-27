@@ -97,8 +97,7 @@ try:
     img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
     # Insert logo
     try:
-        logo = Image.open("logo.png")  # same folder
-        box = (img.size[0]//3, img.size[1]//3)
+        logo = Image.open("n4logo.png")  # <- logo name ပြောင်းထား
         size = img.size[0]//4
         logo = logo.resize((size, size))
         pos = ((img.size[0]-logo.size[0])//2, (img.size[1]-logo.size[1])//2)
