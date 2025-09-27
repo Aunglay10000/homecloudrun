@@ -4,7 +4,7 @@ set -euo pipefail
 # ---------- Pretty colors ----------
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
 
-echo -e "🚀 ${BOLD}${CYAN}Cloud Run One-Click Deploy (Pastebin Only)${NC}"
+echo -e "🚀 ${BOLD}${CYAN}Cloud Run One-Click Deploy (Pastebin + Auto Download)${NC}"
 
 # ---------- GCP ----------
 PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
@@ -101,15 +101,24 @@ if [[ "$PB_RESP" =~ ^https?://pastebin\.com/ ]]; then
   RAW_URL="$(echo "$PB_RESP" | sed -E 's#https?://pastebin\.com/([A-Za-z0-9]+)#https://pastebin.com/raw/\1#')"
   echo -e "🌐 ${GREEN}Pastebin Link:${NC} ${BOLD}${CYAN}${PB_RESP}${NC}"
   echo -e "📄 ${GREEN}Raw URL:${NC} ${BOLD}${CYAN}${RAW_URL}${NC}"
-  # Optional: also fetch raw into the same local file (overwrite)
+
+  # Local overwrite (optional)
   curl -sSL "$RAW_URL" -o "${OUT_FILE}" || true
   echo -e "✅ Also wrote raw content to: ${YELLOW}${OUT_FILE}${NC}"
+
+  # ---- Auto download via Cloud Shell helper ----
+  if command -v cloudshell >/dev/null 2>&1; then
+    echo -e "📥 Triggering Cloud Shell download for ${OUT_FILE}..."
+    cloudshell download "${OUT_FILE}" || true
+  else
+    echo -e "${YELLOW}ℹ️ 'cloudshell' helper not found. Please download the file manually from the editor.${NC}"
+  fi
 else
   echo -e "${RED}❌ Pastebin upload failed:${NC} ${PB_RESP}"
   echo -e "🔗 Trojan URI (copy manually):"
   echo -e "${BOLD}${TROJAN_URI}${NC}"
 fi
 
-# ---------- Final echo ----------
+# ---------- Final ----------
 echo -e "\n🔗 Trojan URI:"
 echo -e "${BOLD}${TROJAN_URI}${NC}\n"
