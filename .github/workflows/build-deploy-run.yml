@@ -1,0 +1,36 @@
+name: Build deploy.run with shc
+
+on:
+  workflow_dispatch:        # မည်သည့်အချိန်မဆို ခလုတ်နှိပ်ပြီးလည်း chạy လိုက်နိုင်
+  push:
+    paths:
+      - "deploy.sh"         # deploy.sh ပြောင်းလဲပြီးဆိုရင်ပဲ chạy
+    branches:
+      - main                # main branch မှာပဲ chạy
+
+permissions:
+  contents: write           # repo ထဲကို commit ပြန်ထည့်ဖို့လို
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # amd64 runner -> Cloud Shell သို့ run အဆင်ပြေ
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shc
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shc
+
+      - name: Build binary with shc
+        run: |
+          shc -f deploy.sh -o deploy.run
+          chmod +x deploy.run
+
+      # ရိုးရိုး: repo root ထဲကို အစိုက်အပြောက် commit ပြန်ထည့်ပါ (raw link လွယ်)
+      - name: Commit deploy.run back to repo
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: build deploy.run [skip ci]"
+          file_pattern: "deploy.run"
