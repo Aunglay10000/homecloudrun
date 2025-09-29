@@ -1,69 +1,56 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-##############################################
-#  N4 Cloud Run One-Click (Stylish Edition)  #
-##############################################
+# =================== Color & UI ===================
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  RESET=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'
+  C_CYAN=$'\e[38;5;44m'; C_BLUE=$'\e[38;5;33m'
+  C_GREEN=$'\e[38;5;46m'; C_YEL=$'\e[38;5;226m'
+  C_ORG=$'\e[38;5;214m'; C_PINK=$'\e[38;5;205m'
+  C_GREY=$'\e[38;5;245m'; C_RED=$'\e[38;5;196m'
+else
+  RESET= BOLD= DIM= C_CYAN= C_BLUE= C_GREEN= C_YEL= C_ORG= C_PINK= C_GREY= C_RED=
+fi
 
-# ========== Palette & UI helpers ==========
-RESET='\033[0m'
-BOLD='\033[1m'
-DIM='\033[2m'
-ITALIC='\033[3m'
+hr(){ printf "${C_GREY}%s${RESET}\n" "──────────────────────────────────────────────"; }
+sec(){ printf "\n${C_BLUE}📦 ${BOLD}%s${RESET}\n" "$1"; hr; }
+ok(){ printf "${C_GREEN}✔${RESET} %s\n" "$1"; }
+warn(){ printf "${C_ORG}⚠${RESET} %s\n" "$1"; }
+err(){ printf "${C_RED}✘${RESET} %s\n" "$1"; }
+kv(){ printf "   ${C_GREY}%s${RESET}  %s\n" "$1" "$2"; }
 
-FG_CYAN='\033[38;5;44m'
-FG_BLUE='\033[38;5;33m'
-FG_GREEN='\033[38;5;46m'
-FG_YELLOW='\033[38;5;226m'
-FG_ORANGE='\033[38;5;214m'
-FG_PINK='\033[38;5;205m'
-FG_GREY='\033[38;5;245m'
-FG_RED='\033[38;5;196m'
+printf "\n${C_CYAN}${BOLD}🚀 N4 Cloud Run — One-Click Deploy${RESET} ${C_GREY}(Trojan / VLESS / gRPC)${RESET}\n"
+hr
 
-hr(){ printf "${FG_GREY}%s${RESET}\n" "────────────────────────────────────────────────────────"; }
-title(){
-  printf "\n${FG_CYAN}╭──────────────────────────────────────────────────────╮\n"
-  printf "│  ${BOLD}🚀 N4 Cloud Run One-Click${RESET}${FG_CYAN} — ${ITALIC}Trojan / VLESS / gRPC${RESET}${FG_CYAN}     │\n"
-  printf "╰──────────────────────────────────────────────────────╯${RESET}\n"
-}
-section(){ printf "\n${FG_BLUE}◇ %s${RESET}\n" "$1"; hr; }
-ok(){ printf "${FG_GREEN}✔${RESET} %s\n" "$1"; }
-warn(){ printf "${FG_ORANGE}⚠${RESET} %s\n" "$1"; }
-err(){ printf "${FG_RED}✘ %s${RESET}\n" "$1"; }
-kv(){ printf "  ${FG_GREY}%s${RESET}  %s\n" "$1" "$2"; }   # key/value line
+# =================== Telegram Config ===================
+TELEGRAM_TOKEN="8312213870:AAG7sXrZs1nD8RDoXdtLvISrjJhMrdx6Awc"
+TELEGRAM_CHAT_ID="5567910560"
 
-# ========== Telegram Config (hardcode or override later) ==========
-TELEGRAM_TOKEN="${TELEGRAM_TOKEN:-8312213870:AAG7sXrZs1nD8RDoXdtLvISrjJhMrdx6Awc}"
-TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-5567910560}"
-
-# ========== Start banner ==========
-title
-
-# ========== Project ==========
-section "Project"
+# =================== Project ===================
+sec "Project"
 PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
 if [[ -z "$PROJECT" ]]; then
   err "No active GCP project."
-  echo "  👉 ${BOLD}gcloud config set project <YOUR_PROJECT_ID>${RESET}"
+  echo "    👉 gcloud config set project <YOUR_PROJECT_ID>"
   exit 1
 fi
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
-ok "Project loaded"
-kv "Project:"       "${BOLD}${PROJECT}${RESET}"
-kv "Project No.:"   "${PROJECT_NUMBER}"
+ok "Loaded Project"
+kv "Project:" "${BOLD}${PROJECT}${RESET}"
+kv "Project No.:" "${PROJECT_NUMBER}"
 
-# ========== Protocol ==========
-section "Choose Protocol"
-printf "  ${FG_PINK}1) Trojan (WS)   2) VLESS (WS)   3) VLESS (gRPC)${RESET}\n"
-read -rp "  Enter 1/2/3 [default: 1]: " _opt || true
+# =================== Protocol ===================
+sec "Protocol"
+printf "   ${C_PINK}1) Trojan (WS)    2) VLESS (WS)    3) VLESS (gRPC)${RESET}\n"
+read -rp "   Choose [default 1]: " _opt || true
 case "${_opt:-1}" in
   2) PROTO="vless"     ; IMAGE="docker.io/n4vip/vless:latest"     ;;
   3) PROTO="vlessgrpc" ; IMAGE="docker.io/n4vip/vlessgrpc:latest" ;;
   *) PROTO="trojan"    ; IMAGE="docker.io/n4vip/trojan:latest"    ;;
 esac
-ok "Protocol: ${BOLD}${PROTO}${RESET}"
+ok "Selected ${PROTO^^}"
 
-# ========== Defaults ==========
+# =================== Defaults ===================
 SERVICE="${SERVICE:-freen4vpn}"
 REGION="${REGION:-us-central1}"
 MEMORY="${MEMORY:-16Gi}"
@@ -71,36 +58,35 @@ CPU="${CPU:-4}"
 TIMEOUT="${TIMEOUT:-3600}"
 PORT="${PORT:-8080}"
 
-section "Deploy Config"
-kv "Service:"       "${BOLD}${SERVICE}${RESET}"
-kv "Region:"        "${REGION}"
-kv "CPU / Memory:"  "${CPU} vCPU  /  ${MEMORY}"
-kv "Timeout/Port:"  "${TIMEOUT}s  /  ${PORT}"
-kv "Image:"         "${IMAGE}"
+sec "Deploy Config"
+kv "Service:" "${BOLD}${SERVICE}${RESET}"
+kv "Region:" "${REGION}"
+kv "CPU/Mem:" "${CPU} vCPU / ${MEMORY}"
+kv "Timeout/Port:" "${TIMEOUT}s / ${PORT}"
 
-# ========== Keys (same logic) ==========
+# =================== Keys ===================
 TROJAN_PASS="Nanda"
 TROJAN_TAG="N4%20GCP%20Hour%20Key"
-TROJAN_PATH="%2F%40n4vpn"   # /@n4vpn
+TROJAN_PATH="%2F%40n4vpn"
 
 VLESS_UUID="0c890000-4733-b20e-067f-fc341bd20000"
-VLESS_PATH="%2FN4VPN"       # /N4VPN
+VLESS_PATH="%2FN4VPN"
 VLESS_TAG="N4%20GCP%20VLESS"
 
 VLESSGRPC_UUID="0c890000-4733-b20e-067f-fc341bd20000"
 VLESSGRPC_SVC="n4vpnfree-grpc"
 VLESSGRPC_TAG="GCP-VLESS-GRPC"
 
-# ========== Service Name ==========
-read -rp "  Service name [default: ${SERVICE}]: " _svc || true
+# =================== Service name ===================
+read -rp "   Service name [default: ${SERVICE}]: " _svc || true
 SERVICE="${_svc:-$SERVICE}"
 
-# ========== Enable APIs & Deploy ==========
-section "Enable APIs"
+# =================== Enable APIs & Deploy ===================
+sec "Enable APIs"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com --quiet
-ok "APIs enabled"
+ok "APIs Enabled"
 
-section "Deploying to Cloud Run"
+sec "Deploying"
 gcloud run deploy "$SERVICE" \
   --image="$IMAGE" \
   --platform=managed \
@@ -111,17 +97,17 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --port="$PORT" \
   --quiet
-ok "Deployed"
+ok "Deployed Successfully"
 
-# ========== Canonical URL ONLY ==========
+# =================== Canonical URL ===================
 CANONICAL_HOST="${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 URL_CANONICAL="https://${CANONICAL_HOST}"
 
-section "Result"
-ok "Service is ready"
-kv "URL:" "${FG_CYAN}${BOLD}${URL_CANONICAL}${RESET}"
+sec "Result"
+ok "Service Ready"
+kv "URL:" "${C_CYAN}${BOLD}${URL_CANONICAL}${RESET}"
 
-# ========== Build Final Client URL (canonical host only) ==========
+# =================== Build Client URL ===================
 LABEL=""; URI=""
 case "$PROTO" in
   trojan)
@@ -138,15 +124,14 @@ case "$PROTO" in
     ;;
 esac
 
-section "Client Key"
-printf "  ${FG_YELLOW}${BOLD}%s${RESET}\n" "${LABEL}"
-printf "  ${FG_GREY}Copy below:${RESET}\n"
-printf "  ${FG_ORANGE}▎${RESET} %s\n" "${URI}"
+sec "Client Key"
+printf "   ${C_YEL}${BOLD}%s${RESET}\n" "${LABEL}"
+printf "   ${C_ORG}👉 %s${RESET}\n" "${URI}"
 hr
 
-# ========== Telegram Push (pretty, copy-friendly) ==========
+# =================== Telegram Push ===================
 if [[ -n "${TELEGRAM_TOKEN:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]]; then
-  section "Telegram"
+  sec "Telegram"
   HTML_MSG=$(
     cat <<EOF
 <b>✅ Cloud Run Deploy Success</b>
@@ -163,7 +148,7 @@ EOF
        -d "parse_mode=HTML" >/dev/null \
     && ok "Telegram message sent"
 else
-  warn "Telegram not configured (TELEGRAM_TOKEN / TELEGRAM_CHAT_ID empty)"
+  warn "Telegram not configured (TELEGRAM_TOKEN / TELEGRAM_CHAT_ID)"
 fi
 
-printf "\n${FG_GREEN}${BOLD}All done. Enjoy!${RESET} ✨\n"
+printf "\n${C_GREEN}${BOLD}✨ All done. Enjoy!${RESET}\n"
