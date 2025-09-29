@@ -5,6 +5,10 @@ set -euo pipefail
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
 echo -e "🚀 ${BOLD}${CYAN}Cloud Run One-Click Deploy (Trojan / VLESS / VLESS-gRPC)${NC}"
 
+# ===== Config for Telegram =====
+TELEGRAM_TOKEN="8312213870:AAG7sXrZs1nD8RDoXdtLvISrjJhMrdx6Awc"      # <-- သင့် BotFather Token
+TELEGRAM_CHAT_ID="5567910560"      # <-- သင့် Group/Channel/User ID
+
 # ===== Project =====
 PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
 if [[ -z "$PROJECT" ]]; then
@@ -32,38 +36,10 @@ esac
 SERVICE="${SERVICE:-freen4vpn}"
 REGION="${REGION:-us-central1}"
 MEMORY="${MEMORY:-16Gi}"
-CPU="${CPU:-4}"           
+CPU="${CPU:-4}"
 TIMEOUT="${TIMEOUT:-3600}"; PORT="${PORT:-8080}"
 
-# ===== Fixed keys  =====
-TROJAN_PASS="Nanda"
-TROJAN_TAG="N4%20GCP%20Hour%20Key"
-TROJAN_PATH="%2F%40n4vpn"                 # /@n4vpn
-
-VLESS_UUID="0c890000-4733-b20e-067f-fc341bd20000"
-VLESS_PATH="%2FN4VPN"                     # /N4VPN
-VLESS_TAG="N4%20GCP%20VLESS"
-
-VLESSGRPC_UUID="0c890000-4733-b20e-067f-fc341bd20000"
-VLESSGRPC_SVC="n4vpnfree-grpc"
-VLESSGRPC_TAG="GCP-VLESS-GRPC"
-
-# ===== Service name =====
-read -rp "Enter Cloud Run service name [default: ${SERVICE}]: " _svc || true
-SERVICE="${_svc:-$SERVICE}"
-
-# ===== Summary (Docker image မပြ) =====
-echo -e "\n${CYAN}========================================${NC}"
-echo -e "📦 Project : ${PROJECT}"
-echo -e "🔢 Number : ${PROJECT_NUMBER}"
-echo -e "🌍 Region  : ${REGION}"
-echo -e "🛠 Service : ${SERVICE}"
-echo -e "📡 Protocol: ${PROTO}"
-echo -e "💾 Memory  : ${MEMORY}   ⚡ CPU: ${CPU}"
-echo -e "⏱ Timeout : ${TIMEOUT}s  🔌 Port: ${PORT}"
-echo -e "${CYAN}========================================${NC}\n"
-
-# ===== Enable APIs & Deploy =====
+# ===== Deploy =====
 echo -e "➡️ Enabling Cloud Run & Cloud Build APIs..."
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com --quiet
 
@@ -79,32 +55,20 @@ gcloud run deploy "$SERVICE" \
   --port="$PORT" \
   --quiet
 
-# ===== Canonical Host (always correct) =====
-# Use canonical pattern: <service>-<projectNumber>.<region>.run.app
+# ===== URL Grab =====
 HOST="${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
-
-# (Optional) show what Cloud Run reported too, for reference
 URL_REPORTED="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 
 echo -e "\n${GREEN}✅ Deployment finished!${NC}"
 echo -e "🌐 Service URL (reported): ${BOLD}${CYAN}${URL_REPORTED}${NC}"
 echo -e "🧭 Using canonical host   : ${BOLD}${CYAN}${HOST}${NC}"
 
-# ===== Build final client URL (HOST/SNI auto inject) =====
-case "$PROTO" in
-  trojan)
-    URI="trojan://${TROJAN_PASS}@m.googleapis.com:443?path=${TROJAN_PATH}&security=tls&alpn=http%2F1.1&host=${HOST}&fp=randomized&type=ws&sni=m.googleapis.com#${TROJAN_TAG}"
-    LABEL="TROJAN URL"
-    ;;
-  vless)
-    URI="vless://${VLESS_UUID}@m.googleapis.com:443?path=${VLESS_PATH}&security=tls&alpn=http%2F1.1&encryption=none&host=${HOST}&fp=randomized&type=ws&sni=m.googleapis.com#${VLESS_TAG}"
-    LABEL="VLESS URL (WS)"
-    ;;
-  vlessgrpc)
-    URI="vless://${VLESSGRPC_UUID}@m.googleapis.com:443?mode=gun&security=tls&alpn=http%2F1.1&encryption=none&fp=randomized&type=grpc&serviceName=${VLESSGRPC_SVC}&sni=${HOST}#${VLESSGRPC_TAG}"
-    LABEL="VLESS-gRPC URL"
-    ;;
-esac
-
-echo -e "\n🔗 ${BOLD}${LABEL}:${NC}"
-echo -e "   ${YELLOW}${URI}${NC}\n"
+# ===== Telegram Send =====
+if [[ -n "$TELEGRAM_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+  MSG="✅ Cloud Run Deploy Success\n🌐 Reported: ${URL_REPORTED}\n🧭 Canonical: ${HOST}"
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+       -d "chat_id=${TELEGRAM_CHAT_ID}" \
+       -d "text=${MSG}" \
+       -d "parse_mode=Markdown" >/dev/null
+  echo -e "📤 Telegram message sent!"
+fi
