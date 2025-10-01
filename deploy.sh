@@ -75,7 +75,7 @@ kv "Timeout/Port:" "${TIMEOUT}s / ${PORT}"
 # =================== Keys ===================
 TROJAN_PASS="Home"
 TROJAN_TAG="Home%20GCP%20Hour%20Key"
-TROJAN_PATH="%2F%40whoru139"
+TROJAN_PATH="%2F%40n4vpn"
 
 VLESS_UUID="0c890000-4733-b20e-067f-fc341bd20000"
 VLESS_PATH="%2FHOMEVPN"
