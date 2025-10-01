@@ -58,7 +58,7 @@ esac
 ok "Selected ${PROTO^^}"
 
 # =================== Defaults ===================
-SERVICE="${SERVICE:-freen4vpn}"
+SERVICE="${SERVICE:-homevpn}"
 REGION="${REGION:-us-central1}"
 MEMORY="${MEMORY:-16Gi}"
 CPU="${CPU:-4}"
@@ -73,16 +73,16 @@ kv "Timeout/Port:" "${TIMEOUT}s / ${PORT}"
 # (image link intentionally hidden in summary)
 
 # =================== Keys ===================
-TROJAN_PASS="Nanda"
-TROJAN_TAG="N4%20GCP%20Hour%20Key"
-TROJAN_PATH="%2F%40n4vpn"
+TROJAN_PASS="homepro"
+TROJAN_TAG="HOME%20GCP%20Hour%20Key"
+TROJAN_PATH="%2F%X0M3"
 
 VLESS_UUID="0c890000-4733-b20e-067f-fc341bd20000"
-VLESS_PATH="%2FN4VPN"
-VLESS_TAG="N4%20GCP%20VLESS"
+VLESS_PATH="%2HOMEVPN"
+VLESS_TAG="HOME%20GCP%20VLESS"
 
 VLESSGRPC_UUID="0c890000-4733-b20e-067f-fc341bd20000"
-VLESSGRPC_SVC="n4vpnfree-grpc"
+VLESSGRPC_SVC="homevpn-grpc"
 VLESSGRPC_TAG="GCP-VLESS-GRPC"
 
 # =================== Service name ===================
