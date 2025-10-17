@@ -152,12 +152,15 @@ if [[ -n "${TELEGRAM_TOKEN}" && -n "${TELEGRAM_CHAT_ID}" ]]; then
   HTML_MSG=$(
     cat <<EOF
 <b>✅ Cloud Run Deploy Success</b>
+━━━━━━━━━━━━━━━━━━
 <blockquote><b>Service:</b> ${SERVICE}
 <b>Region:</b> ${REGION}
 <b>URL:</b> ${URL_CANONICAL}</blockquote>
+<b>🔑 MYTEL လိုင်းဖြတ် GCP</b>
 <pre><code>${URI}</code></pre>
 <blockquote>🕒 <b>Start:</b> ${START_LOCAL}
 ⏳ <b>End:</b> ${END_LOCAL}</blockquote>
+━━━━━━━━━━━━━━━━━━
 EOF
   )
   # never echo secrets
