@@ -88,7 +88,16 @@ VLESSGRPC_TAG="GCP-VLESS-GRPC"
 # =================== Service name ===================
 read -rp "   Service name [default: ${SERVICE}]: " _svc || true
 SERVICE="${_svc:-$SERVICE}"
-
+# =================== Timezone Setup ===================
+export TZ="Asia/Yangon"
+START_EPOCH="$(date +%s)"
+END_EPOCH="$(( START_EPOCH + 5*3600 ))"
+fmt_dt(){ date -d @"$1" "+%d.%m.%Y %I:%M %p"; }
+START_LOCAL="$(fmt_dt "$START_EPOCH")"
+END_LOCAL="$(fmt_dt "$END_EPOCH")"
+banner "🕒 Step 7 — Deployment Time"
+kv "Start:" "${START_LOCAL}"
+kv "End:"   "${END_LOCAL}"
 # =================== Enable APIs & Deploy ===================
 sec "Enable APIs"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com --quiet
@@ -143,11 +152,12 @@ if [[ -n "${TELEGRAM_TOKEN}" && -n "${TELEGRAM_CHAT_ID}" ]]; then
   HTML_MSG=$(
     cat <<EOF
 <b>✅ Cloud Run Deploy Success</b>
-<b>Service:</b> ${SERVICE}
+<blockquote><b>Service:</b> ${SERVICE}
 <b>Region:</b> ${REGION}
-<b>URL:</b> ${URL_CANONICAL}
-
+<b>URL:</b> ${URL_CANONICAL}</blockquote>
 <pre><code>${URI}</code></pre>
+<blockquote>🕒 <b>Start:</b> ${START_LOCAL}
+⏳ <b>End:</b> ${END_LOCAL}</blockquote>
 EOF
   )
   # never echo secrets
